@@ -27,8 +27,7 @@ endif()
 
 # Recreate build directories
 message(STATUS "** Creating build directories")
-file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/extern/libWRP-key/build)
-file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/extern/libWRP-key/build)
+file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/extern/hidapi/build)
 
 
 # BUilding hidapi
@@ -60,6 +59,7 @@ link_directories(${PROJECT_SOURCE_DIR}/extern/hidapi/build/src/libusb)
 # Build the executable
 add_executable(whb04bhid src/whb04bhid.cpp)
 target_link_libraries(whb04bhid hidapi-hidraw)
+target_link_libraries(whb04bhid udev)
 
 #[[
 if(NOT WIN32 AND NOT APPLE AND CMAKE_SYSTEM_NAME MATCHES "Linux")
