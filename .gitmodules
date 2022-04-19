@@ -1,6 +1,0 @@
-[submodule "extern/hidapi"]
-	path = extern/hidapi
-	url = ../../libusb/hidapi.git
-[submodule "extern/libWRP-key"]
-	path = extern/libWRP-key
-	url = ../../usagi/libWRP-key.git

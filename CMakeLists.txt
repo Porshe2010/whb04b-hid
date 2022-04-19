@@ -1,11 +1,13 @@
-project(hidtest C)
+cmake_minimum_required(VERSION 3.16)
+project(whb04bhid CXX)
+
 
 find_package(Git QUIET)
 if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
 # Update submodules as needed
     option(GIT_SUBMODULE "Check submodules during build" ON)
     if(GIT_SUBMODULE)
-        message(STATUS "Submodule update")
+        message(STATUS "Submodule (hidapi,libWRP-key) update")
         execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
                         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
                         RESULT_VARIABLE GIT_SUBMOD_RESULT)
@@ -16,7 +18,7 @@ if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
 endif()
 
 if(NOT EXISTS "${PROJECT_SOURCE_DIR}/extern/repo/CMakeLists.txt")
-    message(FATAL_ERROR "The submodules ( were not downloaded! GIT_SUBMODULE was turned off or failed. Please update submodules and try again.")
+    message(FATAL_ERROR "The submodules (hidapi,libWRP-key) were not downloaded!\nGIT_SUBMODULE was turned off or failed.\nPlease update submodules and try again.")
 endif()
 
 
@@ -41,7 +43,12 @@ install(TARGETS ${HIDAPI_HIDTEST_TARGETS}
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
 )
 
-# Add the submodules to 
-add_subdirectory(extern/hidapi/hidapi)
-add_subdirectory(extern/libWRP-key/include)
+include_directories(${PROJECT_SOURCE_DIR}/include)
+
+# Add the submodules 
+add_subdirectory(${PROJECT_SOURCE_DIR}/extern/hidapi)
+add_subdirectory(${PROJECT_SOURCE_DIR}/extern/libWRP-key)
+
+include_directories(${PROJECT_SOURCE_DIR}/extern/hidapi/hidapi)
+include_directories(${PROJECT_SOURCE_DIR}/extern/libWRP-key/include)
 
