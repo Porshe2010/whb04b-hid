@@ -50,13 +50,14 @@ endif()
 # Add include search paths
 include_directories(${PROJECT_SOURCE_DIR}/extern/hidapi/hidapi)
 include_directories(${PROJECT_SOURCE_DIR}/extern/hidapi/libusb)
-include_directories(${PROJECT_SOURCE_DIR}/extern/libWRP-key/include)
+include_directories(${PROJECT_SOURCE_DIR}/extern/libWRP-key/include/WonderRabbitProject)
 
 # Add lib search paths
 link_directories(${PROJECT_SOURCE_DIR}/extern/hidapi/build/src/linux)
 link_directories(${PROJECT_SOURCE_DIR}/extern/hidapi/build/src/libusb)
 
 # Build the executable
+set_property(GLOBAL PROPERTY CXX_STANDARD 11)
 add_executable(whb04bhid src/whb04bhid.cpp)
 target_link_libraries(whb04bhid hidapi-hidraw)
 target_link_libraries(whb04bhid udev)

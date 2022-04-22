@@ -1,255 +1,23 @@
-/*******************************************************
- Windows HID simplification
-
- Alan Ott
- Signal 11 Software
-
- 8/22/2009
-
- Copyright 2009
-
- This contents of this file may be used by anyone
- for any reason without any conditions and may be
- used as a starting point for your own applications
- which use HIDAPI.
-********************************************************/
-
-#include <stdio.h>
-#include <wchar.h>
-#include <string.h>
+#include <iostream>
+#include <iterator>
+#include <cerrno>
+#include <cstdio>
+#include <algorithm>
+#include <iomanip>
 #include <stdlib.h>
+#include <math.h>
 
 #include <hidapi.h>
+#include <key.hxx>
 
-// Headers needed for sleeping.
-#ifdef _WIN32
-	#include <windows.h>
-#else
-	#include <unistd.h>
-#endif
+//#define DEBUG
 
-void printState(unsigned char buf []);
-const char *axisName(char axis);
-const char *stepName(unsigned char step);
-const char *keyName(char key, char mod);
+// Helper to output hex with iostreams
+#define PADHEX(width, val) std::setfill('0') << std::setw(width) << std::hex << (unsigned)val
 
-int main(int argc, char* argv[])
-{
-	(void)argc;
-	(void)argv;
+#define WHB04B_VENDOR 0x10CE
+#define WHB04B_PRODUCT 0xEB93
 
-	int res;
-	unsigned char buf[256];
-	#define MAX_STR 255
-	wchar_t wstr[MAX_STR];
-	hid_device *handle;
-	int i;
-
-	struct hid_device_info *devs, *cur_dev;
-
-	printf("hidapi test/example tool. Compiled with hidapi version %s, runtime version %s.\n", HID_API_VERSION_STR, hid_version_str());
-	if (hid_version()->major == HID_API_VERSION_MAJOR && hid_version()->minor == HID_API_VERSION_MINOR && hid_version()->patch == HID_API_VERSION_PATCH) {
-		printf("Compile-time version matches runtime version of hidapi.\n\n");
-	}
-	else {
-		printf("Compile-time version is different than runtime version of hidapi.\n]n");
-	}
-
-	if (hid_init())
-		return -1;
-
-	devs = hid_enumerate(0x0, 0x0);
-	cur_dev = devs;
-	while (cur_dev) {
-        if( cur_dev->vendor_id == 0x10ce )
-        {
-		printf("Device Found\n  vendor:%04hx product:%04hx\n  path: %s\n  serial_number: %ls", cur_dev->vendor_id, cur_dev->product_id, cur_dev->path, cur_dev->serial_number);
-		printf("\n");
-		printf("  Manufacturer: %ls\n", cur_dev->manufacturer_string);
-		printf("  Product:      %ls\n", cur_dev->product_string);
-		printf("  Release:      %hx\n", cur_dev->release_number);
-		printf("  Interface:    %d\n",  cur_dev->interface_number);
-		printf("  Usage (page): 0x%hx (0x%hx)\n", cur_dev->usage, cur_dev->usage_page);
-		printf("\n");
-        }
-		cur_dev = cur_dev->next;
-	}
-	hid_free_enumeration(devs);
-
-	// Set up the command buffer.
-	memset(buf,0x00,sizeof(buf));
-	buf[0] = 0x01;
-	buf[1] = 0x81;
-
-
-
-
-
-    /*
-  type: 10ce eb93
-  path: /dev/hidraw5
-  serial_number: 
-  Manufacturer: KTURT.LTD
-  Product:      (null)
-  Release:      0
-  Interface:    0
-  Usage (page): 0x1 (0xff00)
-  */
-	// Open the device using the VID, PID,
-	// and optionally the Serial number.
-	////handle = hid_open(0x4d8, 0x3f, L"12345");
-	//handle = hid_open(0x4d8, 0x3f, NULL);
-	handle = hid_open(0x10ce, 0xeb93, NULL);
-	if (!handle) {
-		printf("unable to open device by ID\n");
-	}
-
-#if 0
-    handle = hid_open_path("/dev/hidraw5");
-	if (!handle) {
-		printf("unable to open device by path\n");
-	}
- 		return 1;
-#endif
-
-	// Read the Manufacturer String
-	wstr[0] = 0x0000;
-	res = hid_get_manufacturer_string(handle, wstr, MAX_STR);
-	if (res < 0)
-		printf("Unable to read manufacturer string\n");
-	printf("Manufacturer String: %ls\n", wstr);
-
-	// Read the Product String
-	wstr[0] = 0x0000;
-	res = hid_get_product_string(handle, wstr, MAX_STR);
-	if (res < 0)
-		printf("Unable to read product string\n");
-	printf("Product String: %ls\n", wstr);
-
-	// Read the Serial Number String
-	wstr[0] = 0x0000;
-	res = hid_get_serial_number_string(handle, wstr, MAX_STR);
-	if (res < 0)
-		printf("Unable to read serial number string\n");
-	printf("Serial Number String: (%d) %ls", wstr[0], wstr);
-	printf("\n");
-
-#if 0
-	// Read Indexed String 1
-	wstr[0] = 0x0000;
-	res = hid_get_indexed_string(handle, 1, wstr, MAX_STR);
-	if (res < 0)
-		printf("Unable to read indexed string 1\n");
-	printf("Indexed String 1: %ls\n", wstr);
-#endif
-
-	// Read the Serial Number String
-    unsigned char buf2[1024];
-    buf2[0] = 1;
-    size_t len;
-	res = hid_get_feature_report(handle,buf2,len);
-	if (res < 0)
-		printf("Unable to read feature report\n");
-	printf("\n");
-	// Set the hid_read() function to be non-blocking.
-	//hid_set_nonblocking(handle, 1);
-
-	// Try to read from the device. There should be no
-	// data here, but execution should not block.
-	res = hid_read(handle, buf, 17);
-
-#if 0
-    for( int i = 0; i <= 0xFF; i++)
-    {
-        // Send a Feature Report to the device
-        buf[0] = 0x00;
-        buf[1] = 0x00;
-        buf[2] = 0x00;
-        buf[3] = 0x00;
-        buf[4] = i;
-        res = hid_send_feature_report(handle, buf, 5);
-        printf("FR: 0x%02x\n",i);
-        if (res < 0) {
-            printf("Unable to send a feature report.\n");
-        }
-    }
-#endif
-
-	memset(buf,0,sizeof(buf));
-
-	// Read a Feature Report from the device
-	buf[0] = 0x2;
-	res = hid_get_feature_report(handle, buf, sizeof(buf));
-	if (res < 0) {
-		printf("Unable to get a feature report.\n");
-		printf("%ls", hid_error(handle));
-	}
-	else {
-		// Print out the returned buffer.
-		printf("Feature Report\n   ");
-		for (i = 0; i < res; i++)
-			printf("%02hhx ", buf[i]);
-		printf("\n");
-	}
-
-	memset(buf,0,sizeof(buf));
-
-	// Toggle LED (cmd 0x80). The first byte is the report number (0x1).
-	buf[0] = 0x1;
-	buf[1] = 0x80;
-	res = hid_write(handle, buf, 17);
-	if (res < 0) {
-		printf("Unable to write()\n");
-		printf("Error: %ls\n", hid_error(handle));
-	}
-
-
-	// Request state (cmd 0x81). The first byte is the report number (0x1).
-	buf[0] = 0x1;
-	buf[1] = 0x81;
-	hid_write(handle, buf, 17);
-	if (res < 0)
-		printf("Unable to write() (2)\n");
-
-	// Read requested state. hid_read() has been set to be
-	// non-blocking by the call to hid_set_nonblocking() above.
-	// This loop demonstrates the non-blocking nature of hid_read().
-	res = 0;
-	while (1) {
-		res = hid_read(handle, buf, sizeof(buf));
-#if 0
-		if (res == 0)
-			printf("waiting...\n");
-		if (res < 0)
-			printf("Unable to read()\n");
-		#ifdef _WIN32
-		Sleep(500);
-		#else
-		usleep(500*1000);
-		#endif
-#endif
-
-    printState(buf);
-    switch(buf[0])
-
-	printf("Data read:\n   ");
-	// Print out the returned buffer.
-	for (i = 0; i < res; i++)
-		printf("%02hhx ", buf[i]);
-	printf("\n");
-	}
-
-	hid_close(handle);
-
-	/* Free static HIDAPI objects. */
-	hid_exit();
-
-#ifdef _WIN32
-	system("pause");
-#endif
-
-	return 0;
-}
 
 #define RESET 0x01
 #define STOP 0x02
@@ -278,101 +46,360 @@ int main(int argc, char* argv[])
 #define MACRO_9 0x0d
 #define MACRO_10 0x10
 
-#define AXIS_OFF 0x06
-#define AXIS_X 0x11
-#define AXIS_Y 0x12
-#define AXIS_Z 0x13
-#define AXIS_A 0x14
+#define D_AXIS_OFF 0x06
+#define D_AXIS_X 0x11
+#define D_AXIS_Y 0x12
+#define D_AXIS_Z 0x13
+#define D_AXIS_A 0x14
 
-#define STEP_0_001 0x0d
-#define STEP_0_01 0x0e
-#define STEP_0_1 0x0f
-#define STEP_1 0x10
-#define STEP_60 0x1a
-#define STEP_100 0x1b
-#define STEP_LOAD 0x9b
+#define D_STEP_0_001 0x0d
+#define D_STEP_0_01 0x0e
+#define D_STEP_0_1 0x0f
+#define D_STEP_1 0x10
+#define D_STEP_60 0x1a
+#define D_STEP_100 0x1b
+#define D_STEP_LOAD 0x9b
 
-const char *axisName(char axis)
-{
-    switch(axis)
+#define CC_025 "1"
+#define CC_25 "2"
+#define CC_1 "3"
+#define CC_FAST "4"
+
+#define CC_X_UP "right"
+#define CC_X_DOWN "left"
+#define CC_Y_UP "up"
+#define CC_Y_DOWN "down"
+#define CC_Z_UP ","
+#define CC_Z_DOWN "."
+
+
+class WHB04B {
+    public:
+        WHB04B() : writer(WonderRabbitProject::key::writer_t::instance())
     {
-        case AXIS_OFF: return "AXIS_OFF";
-        case AXIS_X: return "AXIS_X";
-        case AXIS_Y: return "AXIS_Y";
-        case AXIS_Z: return "AXIS_Z";
-        case AXIS_A: return "AXIS_A";
     }
-    return "NO AXIS";
-}
+        ~WHB04B() { }
 
-const char *stepName(unsigned char step)
-{
-    switch(step)
-    {
-        case STEP_0_001: return "STEP_0_001";
-        case STEP_0_01: return "STEP_0_01";
-        case STEP_0_1: return "STEP_0_1";
-        case STEP_1: return "STEP_1";
-        case STEP_60: return "STEP_60";
-        case STEP_100: return "STEP_100";
-        case STEP_LOAD: return "STEP_LOAD";
-    }
-    return "NO STEP";
-}
+        enum class Axis {
+            AXIS_NONE = 0xFF,
+            AXIS_OFF = 0x06,
+            AXIS_X = 0x11,
+            AXIS_Y = 0x12,
+            AXIS_Z = 0x13,
+            AXIS_A = 0x14
+        };
 
-const char *keyName(char key, char mod)
-{
-    if( mod == FN )
-    {
-        switch(key)
+        enum class Step {
+            STEP_NONE = 0xFF,
+            STEP_0_001 = 0x0d,
+            STEP_0_01 = 0x0e,
+            STEP_0_1 = 0x0f,
+            STEP_1 = 0x10,
+            STEP_60 = 0x1a,
+            STEP_100 = 0x1b,
+            STEP_LOAD = 0x9b,
+        };
+
+    private:
+        Axis currAxis = Axis::AXIS_NONE;
+        Step currStep = Step::STEP_NONE;
+        const WonderRabbitProject::key::writer_t &writer;
+
+    public:
+        void updateAxis(Axis axis)
         {
-            case MACRO_1: return "MACRO_1";
-            case MACRO_2: return "MACRO_2";
-            case MACRO_3: return "MACRO_3";
-            case MACRO_4: return "MACRO_4";
-            case MACRO_5: return "MACRO_5";
-            case MACRO_6: return "MACRO_6";
-            case MACRO_7: return "MACRO_7";
-            case MACRO_8: return "MACRO_8";
-            case MACRO_9: return "MACRO_9";
-            case MACRO_10: return "MACRO_10";
+            switch(axis)
+            {
+                case Axis::AXIS_X:
+                    currAxis = axis;
+                    break;
+                case Axis::AXIS_Y:
+                    currAxis = axis;
+                    break;
+                case Axis::AXIS_Z:
+                    currAxis = axis;
+                    break;
+                default:
+                    currAxis = Axis::AXIS_OFF;
+                    break;
+            }
+#if defined(DEBUG)
+            //std::cout << "AXIS: " << axisName(currAxis) << std::endl;
+#endif
         }
-    }
-    else {
-        switch(key)
-        {
-            case RESET: return "RESET" ;
-            case STOP: return "STOP" ;
-            case START_PAUSE: return "START_PAUSE" ;
-            case FEED_UP: return "FEED_UP" ;
-            case FEED_DOWN: return "FEED_DOWN" ;
-            case SPINDLE_UP: return "SPINDLE_UP" ;
-            case SPINDLE_DOWN: return "SPINDLE_DOWN" ;
-            case M_HOME: return "M_HOME" ;
-            case SAFE_Z: return "SAFE_Z" ;
-            case W_HOME: return "W_HOME" ;
-            case S_ON_OFF: return "S_ON_OFF" ;
-            case FN: return "FN" ;
-            case PROBE_Z: return "PROBE_Z" ;
-            case CONTINUOUS: return "CONTINUOUS" ;
-            case STEP: return "STEP" ;
-            case MACRO_10: return "MACRO_10" ;
-        }
-    }
-    return "NO KEY";
-}
 
-void printState(unsigned char buf [])
-{
-    unsigned char key = buf[2];
-    unsigned char mod = buf[3];
-    if(mod)
-    {
-        mod=buf[2];
-        key=buf[3];
-    }
-    printf("AXIS:(%02x)%s   STEP:(%02x)%s   KEY:%s\n",  
-            buf[5], axisName(buf[5]), 
-            (unsigned char)buf[4], stepName(buf[4]), 
-            keyName(key,mod));
-}
+        void updateStep(Step step)
+        {
+            currStep=step;
+            switch(step)
+            {
+                case Step::STEP_0_001:
+                    writer(CC_025);
+                    break;
+                case Step::STEP_0_01:
+                    writer(CC_25);
+                    break;
+                case Step::STEP_0_1:
+                    writer(CC_1);
+                    break;
+                default:
+                    writer(CC_FAST);
+            }
+#if defined(DEBUG)
+            //std::cout << "STEP: " << stepName(currStep) << std::endl;
+#endif
+        }
+
+        void handleButtons(unsigned char key,unsigned char mod)
+        {
+#if defined(DEBUG)
+            //std::cout << "KEY: " << keyName(key,mod) << std::endl;
+#endif
+        }
+
+        void handleJog(char count)
+        {
+            uint16_t localCount = count;
+            const char *symbol;
+            if( count < 0)
+            {
+                localCount = -count;
+            }
+
+            switch(currAxis)
+            {
+                case Axis::AXIS_X:
+                    symbol = (count<0)?CC_X_DOWN:CC_X_UP;
+                    break;
+                case Axis::AXIS_Y:
+                    symbol = (count<0)?CC_Y_DOWN:CC_Y_UP;
+                    break;
+                case Axis::AXIS_Z:
+                    symbol = (count<0)?CC_Z_DOWN:CC_Z_UP;
+                    break;
+                default:
+                    // Do nothing
+                    return;
+            }
+            for( auto i = 0; i < localCount; ++i)
+            {
+                writer(symbol);
+            }
+        }
+
+        void handleHIDBuffer(unsigned char buf [], size_t len)
+        {
+#if defined(DEBUG)
+            for (auto i = 0; i < len; i++)
+            {
+                std::cout << "0x" << PADHEX(2,buf[i]) << " ";
+            }
+            std::cout << std::endl;
+#endif
+
+            // Update feed rate
+            if( static_cast<Step>(buf[4]) != currStep )
+            {
+                updateStep(static_cast<Step>(buf[4]));
+            }
+            // Update axis
+            if( static_cast<Axis>(buf[5]) != currAxis )
+            {
+                updateAxis(static_cast<Axis>(buf[5]));
+            }
+
+            // Handle button press
+            unsigned char key = buf[2];
+            unsigned char mod = buf[3];
+            if(mod)
+            {
+                mod=buf[2];
+                key=buf[3];
+            }
+            handleButtons(key,mod);
+
+            // Handle jog
+            if( buf[6] > 0 )
+            {
+                handleJog((char)buf[6]);
+            }
+
+        }
+
+        int xhc_encode_float(float v, unsigned char *buf)
+        {
+            float abs_v = fabs(v);
+
+            short int_part = (short)floor(abs_v);
+            short fract_part = (short)(round((abs_v - int_part) * 10000.0f));
+            if (v < 0) fract_part = fract_part | 0x8000;
+            *(short *)buf = int_part;
+            *((short *)buf+1) = fract_part;
+            return 4;
+        }
+
+        int xhc_encode_s16(int v, unsigned char *buf)
+        {
+            *(short *)buf = v;
+            return 2;
+        }
+#if 0
+
+        typedef struct {
+            hal_float_t *x_wc, *y_wc, *z_wc, *a_wc;
+            hal_float_t *x_mc, *y_mc, *z_mc, *a_mc;
+
+            hal_float_t *feedrate_override, *feedrate;
+            hal_float_t *spindle_override, *spindle_rps;
+
+            hal_bit_t *button_pin[NB_MAX_BUTTONS];
+
+            hal_bit_t *jog_enable_x;
+            hal_bit_t *jog_enable_y;
+            hal_bit_t *jog_enable_z;
+            hal_bit_t *jog_enable_a;
+            hal_bit_t *jog_enable_feedrate;
+            hal_bit_t *jog_enable_spindle;
+            hal_float_t *jog_scale;
+            hal_s32_t *jog_counts, *jog_counts_neg;
+        } xhc_hal_t;
+
+        typedef struct {
+            xhc_hal_t *hal;
+            int step;
+            xhc_axis_t axis;
+        } xhc_t;
+
+
+
+        void xhc_display_encode(xhc_t *xhc, unsigned char *data, int len)
+        {
+            unsigned char buf[6*7];
+            unsigned char *p = buf;
+            int i;
+
+            assert(len == 6*8);
+
+            memset(buf, 0, sizeof(buf));
+
+            *p++ = 0xFE;
+            *p++ = 0xFD;
+            *p++ = 0x0C;
+
+            if (xhc->axis == axis_a) 
+            {
+                p += xhc_encode_float(*(xhc->hal->a_wc), p);
+            }
+            else 
+            {
+                p += xhc_encode_float(*(xhc->hal->x_wc), p);
+            }
+            p += xhc_encode_float(*(xhc->hal->y_wc), p);
+            p += xhc_encode_float(*(xhc->hal->z_wc), p);
+            if (xhc->axis == axis_a) 
+            {
+                p += xhc_encode_float(*(xhc->hal->a_mc), p);
+            }
+            else 
+            {
+                p += xhc_encode_float(*(xhc->hal->x_mc), p);
+            }
+            p += xhc_encode_float(*(xhc->hal->y_mc), p);
+            p += xhc_encode_float(*(xhc->hal->z_mc), p);
+
+            p += xhc_encode_s16((int)100.0**(xhc->hal->feedrate_override), p);
+            p += xhc_encode_s16((int)100.0**(xhc->hal->spindle_override), p);
+            p += xhc_encode_s16((int)*(xhc->hal->feedrate), p);
+            p += xhc_encode_s16(60 * (int)*(xhc->hal->spindle_rps), p);
+
+            switch (xhc->step) {
+                case 1:
+                    buf[35] = 0x01;
+                    break;
+                case 10:
+                    buf[35] = 0x03;
+                    break;
+                case 100:
+                    buf[35] = 0x08;
+                    break;
+                case 1000:
+                    buf[35] = 0x0A;
+                    break;
+            }
+
+            // Multiplex to 6 USB transactions
+            hid_write(handle,p,len);
+        }
+
+#endif
+
+        const char *axisName(Axis axis)
+        {
+            switch(axis)
+            {
+                case Axis::AXIS_OFF: return "AXIS_OFF";
+                case Axis::AXIS_X: return "AXIS_X";
+                case Axis::AXIS_Y: return "AXIS_Y";
+                case Axis::AXIS_Z: return "AXIS_Z";
+                case Axis::AXIS_A: return "AXIS_A";
+            }
+            return "NO AXIS";
+        }
+
+        const char *stepName(Step step)
+        {
+            switch(step)
+            {
+                case Step::STEP_0_001: return "STEP_0_001";
+                case Step::STEP_0_01: return "STEP_0_01";
+                case Step::STEP_0_1: return "STEP_0_1";
+                case Step::STEP_1: return "STEP_1";
+                case Step::STEP_60: return "STEP_60";
+                case Step::STEP_100: return "STEP_100";
+                case Step::STEP_LOAD: return "STEP_LOAD";
+            }
+            return "NO STEP";
+        }
+
+        const char *keyName(char key, char mod)
+        {
+            if( mod == FN )
+            {
+                switch(key)
+                {
+                    case MACRO_1: return "MACRO_1";
+                    case MACRO_2: return "MACRO_2";
+                    case MACRO_3: return "MACRO_3";
+                    case MACRO_4: return "MACRO_4";
+                    case MACRO_5: return "MACRO_5";
+                    case MACRO_6: return "MACRO_6";
+                    case MACRO_7: return "MACRO_7";
+                    case MACRO_8: return "MACRO_8";
+                    case MACRO_9: return "MACRO_9";
+                    case MACRO_10: return "MACRO_10";
+                }
+            }
+            else {
+                switch(key)
+                {
+                    case RESET: return "RESET" ;
+                    case STOP: return "STOP" ;
+                    case START_PAUSE: return "START_PAUSE" ;
+                    case FEED_UP: return "FEED_UP" ;
+                    case FEED_DOWN: return "FEED_DOWN" ;
+                    case SPINDLE_UP: return "SPINDLE_UP" ;
+                    case SPINDLE_DOWN: return "SPINDLE_DOWN" ;
+                    case M_HOME: return "M_HOME" ;
+                    case SAFE_Z: return "SAFE_Z" ;
+                    case W_HOME: return "W_HOME" ;
+                    case S_ON_OFF: return "S_ON_OFF" ;
+                    case FN: return "FN" ;
+                    case PROBE_Z: return "PROBE_Z" ;
+                    case CONTINUOUS: return "CONTINUOUS" ;
+                    case STEP: return "STEP" ;
+                    case MACRO_10: return "MACRO_10" ;
+                }
+            }
+            return "NO KEY";
+        }
+};
