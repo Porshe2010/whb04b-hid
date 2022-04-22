@@ -51,6 +51,8 @@ endif()
 include_directories(${PROJECT_SOURCE_DIR}/extern/hidapi/hidapi)
 include_directories(${PROJECT_SOURCE_DIR}/extern/hidapi/libusb)
 include_directories(${PROJECT_SOURCE_DIR}/extern/libWRP-key/include/WonderRabbitProject)
+include_directories(${PROJECT_SOURCE_DIR}/include)
+
 
 # Add lib search paths
 link_directories(${PROJECT_SOURCE_DIR}/extern/hidapi/build/src/linux)
@@ -58,7 +60,15 @@ link_directories(${PROJECT_SOURCE_DIR}/extern/hidapi/build/src/libusb)
 
 # Build the executable
 set_property(GLOBAL PROPERTY CXX_STANDARD 11)
-add_executable(whb04bhid src/whb04bhid.cpp)
+
+if(WIN32)
+add_subdirectory(${PROJECT_SOURCE_DIR}/windows)
+add_executable(whb04bhid src/whb04bhid.cpp windows/winmain.cpp)
+endif()
+if(NOT WIN32 AND NOT APPLE AND CMAKE_SYSTEM_NAME MATCHES "Linux")
+add_executable(whb04bhid src/whb04bhid.cpp linux/linuxmain.cpp)
+endif()
+
 target_link_libraries(whb04bhid hidapi-hidraw)
 target_link_libraries(whb04bhid udev)
 

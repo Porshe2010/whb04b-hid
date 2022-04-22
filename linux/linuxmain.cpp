@@ -6,13 +6,13 @@
 #include <iomanip>
 #include <stdlib.h>
 #include <math.h>
-
-#include <whb04b.h>
+#include <whb04bhid.hpp>
 #include <hidapi.h>
-#include <key.hxx>
 #include <unistd.h>
 
 //#define DEBUG
+
+void doHID( hid_device *handle);
 
 void dumpDevices(void)
 {
@@ -103,3 +103,27 @@ void doHID( hid_device *handle)
         pendant.handleHIDBuffer(buf,res);
     }
 }
+
+#if 0 // maybe later
+
+#include <gtk/gtk.h>
+#include <libappindicator/app-indicator.h>
+
+static void do_something(GtkWidget *widget, gpointer data) {
+  //...
+}
+
+int main (int argc, char **argv) {
+  gtk_init(&argc, &argv);
+  GtkWidget *menu = gtk_menu_new();
+  GtkWidget *menuitem = gtk_menu_item_new_with_mnemonic("_This is a menu item");
+  gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
+  g_signal_connect(menuitem, "activate", G_CALLBACK(do_something), NULL);
+
+  /* the second parameter is the icon displayed */
+  AppIndicator* ind = app_indicator_new("test", "indicator-messages-new", 
+                     APP_INDICATOR_CATEGORY_APPLICATION_STATUS);
+  app_indicator_set_menu(ind, GTK_MENU(menu));
+  gtk_main();
+}
+#endif
